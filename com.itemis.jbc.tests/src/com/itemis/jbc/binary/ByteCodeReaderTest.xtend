@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 
 import static com.itemis.jbc.binary.ClassFileFactoryAPI.*
 import static com.itemis.jbc.binary.TestHelper.*
+import com.itemis.jbc.jbc.ConstantModule
 
 @RunWith(XtextRunner)
 @InjectWith(JBCInjectorProvider)
@@ -253,13 +254,31 @@ class ByteCodeReaderTest {
 				constantInvoceDynamic(u1(18), u2(1), nameAndType)))
 	}
 
+	@Test def constantPoolOneModule() {
+		var ConstantUtf8 utf8
+		assertTreeMatches(readConstantPool(3, '''
+			01 0000
+			13 0001
+		'''), constantPool(utf8 = constantUtf8(u1(1), uString("")), constantModule(u1(19), utf8)))
+
+	}
+
+	@Test def constantPoolOnePackage() {
+		var ConstantUtf8 utf8
+		assertTreeMatches(readConstantPool(3, '''
+			01 0000
+			14 0001
+		'''), constantPool(utf8 = constantUtf8(u1(1), uString("")), constantPackage(u1(20), utf8)))
+
+	}
+
 	@Test def classFileWithOneConstantPoolEntryOfEachType() {
 		var ConstantUtf8 utf8
 		var ConstantClass class
 		var ConstantNameAndType nameAndType
 		assertTreeMatches(readClassFile('''
 			cafebabe 0000 0034
-			0011
+			0013
 				01 0002 61 62
 				03 00000004
 				04 00000005
@@ -274,13 +293,15 @@ class ByteCodeReaderTest {
 				0F 01 000A
 				10 0001
 				12 0001 000A
+				13 0001
+				14 0001
 			0002 0008 0008
 			0000
 			0000
 			0000
 			0000
 		'''),
-			classFile(u4(-889275714), u2(0), u2(52), u2(17),
+			classFile(u4(-889275714), u2(0), u2(52), u2(19),
 				constantPool(utf8 = constantUtf8(u1(1), uString("ab")), constantInteger(u1(3), u4(4)),
 					constantFloat(u1(4), u4(5)), constantLong(u1(5), u4(1), u4(2)), constantDouble(u1(6), u4(1), u4(2)),
 					class = constantClass(u1(7), utf8), constantString(u1(8), utf8),
@@ -288,8 +309,9 @@ class ByteCodeReaderTest {
 					constantMethodRef(u1(10), class, nameAndType),
 					constantInterfaceMethodRef(u1(11), class, nameAndType),
 					constantMethodHandle(u1(15), u1(1), nameAndType), constantMethodType(u1(16), utf8),
-					constantInvoceDynamic(u1(18), u2(1), nameAndType)), u2(2), class, class, u2(0), interfaces(), u2(0),
-				fields(), u2(0), methods(), u2(0), attributes()))
+					constantInvoceDynamic(u1(18), u2(1), nameAndType), constantModule(u1(19), utf8),
+					constantPackage(u1(20), utf8)), u2(2), class, class, u2(0), interfaces(), u2(0), fields(), u2(0),
+				methods(), u2(0), attributes()))
 	}
 
 	@Test def classFileWithInterfaces() {
@@ -489,6 +511,72 @@ class ByteCodeReaderTest {
 			classFile(u4(-889275714), u2(0), u2(52), u2(2),
 				constantPool(utf8 = constantUtf8(u1(1), uString("SourceFile"))), u2(2), null, null, u2(0), interfaces(),
 				u2(0), fields(), u2(0), methods(), u2(1), attributes(attributeSourceFile(utf8, u4(2), utf8))))
+	}
+
+	@Test def classFileWithEnclosingMethodAttribute() {
+		var ConstantUtf8 extendedClassUtf8
+		var ConstantUtf8 enclosingClassUtf8
+		var ConstantUtf8 thisClassUtf8
+		var ConstantUtf8 enclosingMethod
+		var ConstantClass extendedClass
+		var ConstantClass enclosingClass
+		var ConstantClass thisClass
+		assertTreeMatches(readClassFile('''
+			cafebabe 0000 0034
+			0008
+				01 000a 44 75 6d 6d 79 43 6c 61 73 73
+				01 000a 48 65 6c 6c 6f 57 6f 72 6c 64
+				01 0010 48 65 6c 6c 6f 57 6f 72 6c 64 24 31 54 65 73 74
+				01 000f 45 6e 63 6c 6f 73 69 6e 67 4d 65 74 68 6f 64
+				07 0001
+				07 0002
+				07 0003
+			0020 0007 0005 0000 
+			0000
+			0000
+			0001
+				0004 00000004 0006 0000
+		'''), classFile(u4(-889275714), u2(0), u2(52), u2(8), constantPool(
+			extendedClassUtf8 = constantUtf8(u1(1), uString("DummyClass")),
+			enclosingClassUtf8 = constantUtf8(u1(1), uString("HelloWorld")),
+			thisClassUtf8 = constantUtf8(u1(1), uString("HelloWorld$1Test")),
+			enclosingMethod = constantUtf8(u1(1), uString("EnclosingMethod")),
+			extendedClass = constantClass(u1(7), enclosingClassUtf8),
+			enclosingClass = constantClass(u1(7), extendedClassUtf8),
+			thisClass = constantClass(u1(7), thisClassUtf8)
+		), u2(32), thisClass, extendedClass, u2(0), interfaces(), u2(0), fields(), u2(0), methods(), u2(1), attributes(
+			attributeEnclosingMethod(enclosingMethod, u4(4), enclosingClass, null)
+		)))
+	}
+
+	@Test def classFileWithModuleAttribute() {
+		var ConstantUtf8 utf8
+		var ConstantClass class
+		var ConstantModule module
+		assertTreeMatches(readClassFile('''
+			cafebabe 0000 0034
+			0004
+				01 0006 4D 6F 64 75 6C 65
+				07 0001
+				13 0001
+			0001 0002 0002 0000
+			0000
+			0000
+			0001
+				0001 00000008 0003 0000 0000
+				0000
+				0000
+				0000
+				0000
+				0000
+		'''),
+			classFile(u4(-889275714), u2(0), u2(52), u2(4),
+				constantPool(utf8 = constantUtf8(u1(1), uString("Module")), class = constantClass(u1(7), utf8),
+					module = constantModule(u1(19), utf8)), u2(1), class, class, u2(0), interfaces(), u2(0), fields(),
+				u2(0), methods(), u2(1),
+				attributes(
+					attributeModule(utf8, u4(8), module, u2(0), null, u2(0), #[], u2(0), #[], u2(0), #[], u2(0), #[],
+						u2(0), #[]))))
 	}
 
 	@Test def codeLDC() {

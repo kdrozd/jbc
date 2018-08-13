@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>com.itemis.jbc</groupId>
 		<artifactId>com.itemis.jbc.parent</artifactId>
-		<version>1.2.0-SNAPSHOT</version>
+		<version>1.2.2</version>
 	</parent>
 	<artifactId>com.itemis.jbc.update</artifactId>
 	<packaging>eclipse-repository</packaging>
@@ -40,6 +40,14 @@
 								</pluginExecution>
 							</pluginExecutions>
 						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.eclipse.tycho</groupId>
+					<artifactId>tycho-p2-repository-plugin</artifactId>
+					<version>${tycho-version}</version>
+					<configuration>
+						<includeAllDependencies>true</includeAllDependencies>
 					</configuration>
 				</plugin>
 			</plugins>

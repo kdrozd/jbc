@@ -17,12 +17,15 @@ import com.itemis.jbc.jbc.ConstantLong
 import com.itemis.jbc.jbc.ConstantMethodHandle
 import com.itemis.jbc.jbc.ConstantMethodRef
 import com.itemis.jbc.jbc.ConstantMethodType
+import com.itemis.jbc.jbc.ConstantModule
 import com.itemis.jbc.jbc.ConstantNameAndType
+import com.itemis.jbc.jbc.ConstantPackage
 import com.itemis.jbc.jbc.ConstantPool
 import com.itemis.jbc.jbc.ConstantPoolEntry
 import com.itemis.jbc.jbc.ConstantString
 import com.itemis.jbc.jbc.ConstantUtf8
 import com.itemis.jbc.jbc.ConstantValue
+import com.itemis.jbc.jbc.EnclosingMethod
 import com.itemis.jbc.jbc.Exceptions
 import com.itemis.jbc.jbc.FieldInfo
 import com.itemis.jbc.jbc.InnerClasses
@@ -34,12 +37,19 @@ import com.itemis.jbc.jbc.U1
 import com.itemis.jbc.jbc.U2
 import com.itemis.jbc.jbc.U4
 import com.itemis.jbc.jbc.Unknown
-import com.itemis.jbc.jbc.impl.CodeTableEntryImplCustom
-import com.itemis.jbc.jbc.impl.ConstantPoolEntryImplCustom
 import java.nio.ByteBuffer
+import java.util.HashMap
+import java.util.Map
+import java.util.WeakHashMap
 import org.eclipse.emf.ecore.EObject
+import com.itemis.jbc.jbc.Module
 
 class ClassFileAccessAPI {
+
+	/** Cache for index of constant pool entries inside the constant pool */
+	static Map<ConstantPool, Map<ConstantPoolEntry, Integer>> constantPoolIndexCache = new WeakHashMap
+	/** Cache for index of code table entries inside each code table */
+	static Map<CodeTable, Map<CodeTableEntry, Integer>> codeTableOffsetCache = new WeakHashMap
 
 	private new() {
 		// facade with only static methods for static import
@@ -156,6 +166,16 @@ class ClassFileAccessAPI {
 		return if(constant instanceof ConstantNameAndType) constant else null
 	}
 
+	static def ConstantModule getConstantModule(ConstantPool constantPool, int index) {
+		val constant = constantPool?.getConstant(index)
+		return if(constant instanceof ConstantModule) constant else null
+	}
+
+	static def ConstantPackage getConstantPackage(ConstantPool constantPool, int index) {
+		val constant = constantPool?.getConstant(index)
+		return if(constant instanceof ConstantPackage) constant else null
+	}
+
 	static def ConstantPoolEntry getConstant(ConstantPool constantPool, int index) {
 		val realIndex = constantPool.calculateListIndex(index)
 		if (realIndex == -1)
@@ -186,10 +206,6 @@ class ClassFileAccessAPI {
 				result++
 		}
 		return result
-	}
-
-	private static def calculateReferenceIndex(ConstantPool constantPool, ConstantPoolEntry entry) {
-		return (entry as ConstantPoolEntryImplCustom).getConstantPoolReferenceIndex();
 	}
 
 	static def getStringValue(ConstantUtf8 constantUtf8) {
@@ -272,6 +288,27 @@ class ClassFileAccessAPI {
 		entry?.constantPool?.calculateReferenceIndex(entry)
 	}
 
+	private static def int calculateReferenceIndex(ConstantPool constantPool, ConstantPoolEntry entry) {
+		var Map<ConstantPoolEntry, Integer> list = constantPoolIndexCache.get(constantPool)
+		if (list === null) {
+			constantPoolIndexCache.put(constantPool, list = constantPool.calculateReferenceIndexList)
+		}
+		return list.get(entry)
+//		return (entry as ConstantPoolEntryImplCustom).getConstantPoolReferenceIndex();
+	}
+
+	private static def Map<ConstantPoolEntry, Integer> calculateReferenceIndexList(ConstantPool constantPool) {
+		var Map<ConstantPoolEntry, Integer> result = new HashMap
+		var index = 1
+		for (constant : constantPool.cpInfo) {
+			result.put(constant, index)
+			if (constant instanceof ConstantDouble || constant instanceof ConstantLong)
+				index++
+			index++
+		}
+		return result
+	}
+
 	static def Class<? extends ConstantPoolEntry> entryTypeForTag(int tag) {
 		switch tag {
 			case 1:
@@ -302,6 +339,10 @@ class ClassFileAccessAPI {
 				ConstantMethodType
 			case 18:
 				ConstantInvoceDynamic
+			case 19:
+				ConstantModule
+			case 20:
+				ConstantPackage
 			default:
 				throw new RuntimeException("Unknown tag: " + tag)
 		}
@@ -337,6 +378,10 @@ class ClassFileAccessAPI {
 				16
 			ConstantInvoceDynamic:
 				18
+			ConstantModule:
+				19
+			ConstantPackage:
+				20
 			default:
 				throw new RuntimeException("Unknown tag: " + entry)
 		}
@@ -344,6 +389,24 @@ class ClassFileAccessAPI {
 
 	static def int offset(CodeTableEntry entry) {
 		entry?.table.offset(entry)
+	}
+
+	private static def offset(CodeTable table, CodeTableEntry entry) {
+		var offsetTable = codeTableOffsetCache.get(table)
+		if (offsetTable === null) {
+			codeTableOffsetCache.put(table, offsetTable = table.calculateOffsetTable)
+		}
+		return offsetTable.get(entry)
+	}
+
+	private static def calculateOffsetTable(CodeTable table) {
+		val result = new HashMap
+		var offset = 0
+		for (entry : table.instruction) {
+			result.put(entry, offset)
+			offset += Opcode.byteCount(entry)
+		}
+		return result
 	}
 
 	static def getTable(CodeTableEntry entry) {
@@ -364,10 +427,6 @@ class ClassFileAccessAPI {
 		return null
 	}
 
-	private static def offset(CodeTable table, CodeTableEntry entry) {
-		return (entry as CodeTableEntryImplCustom).getCodeOffset();
-	}
-
 	static def int byteCount(AttributeInfo attribute) {
 		// TODO probably refactor this into the model!? Extract some class to contain attribute logic, similar to Opcode!?
 		switch attribute {
@@ -386,6 +445,15 @@ class ClassFileAccessAPI {
 				return 2 + attribute.exception.length * 2
 			InnerClasses:
 				return 2 + attribute.innerClasses.length * 8
+			EnclosingMethod:
+				return 4
+			Module: {
+				return 2 + 2 + 2 + 2 + attribute.requires.length * 6
+					+ 2 + attribute.exports.map[e|2 + 2 + 2 + e.exportsTo.length * 2].reduce[a,b|a + b]
+					+ 2 + attribute.opens.map[e|2 + 2 + 2 + e.opensTo.length * 2].reduce[a,b|a + b]
+					+ 2 + attribute.uses.length * 2
+					+ 2 + attribute.provides.map[e|2 + 2 + e.providesWith.length * 2].reduce[a,b|a + b]
+				}
 			Unknown:
 				return attribute.info.length
 		}

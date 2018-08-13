@@ -27,8 +27,7 @@ class JBCParsingTest {
 	@Inject extension ParseHelper<ClassFile> parseClass
 	@Inject extension ValidationTestHelper
 
-	@Test
-	def void classFileSimple() {
+	@Test def void classFileSimple() {
 		assertTreeMatches(parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0001 ConstantPool {
@@ -47,8 +46,7 @@ class JBCParsingTest {
 				u2(0), fields(), u2(0), methods(), u2(0), attributes()))
 	}
 
-	@Test
-	def classFileWithAllConstantPoolEntries() {
+	@Test def classFileWithAllConstantPoolEntries() {
 		var ConstantUtf8 utf8
 		var ConstantClass class
 		var ConstantNameAndType nameAndType
@@ -69,6 +67,8 @@ class JBCParsingTest {
 					methodHandle 0F 01 000A
 					methodType 10 0001
 					invoceDynamic 12 0001 000A
+					module 13 0001
+					package 14 0001
 				}
 				0001 0008 0008 0000 Interfaces {
 				}
@@ -88,12 +88,12 @@ class JBCParsingTest {
 					constantMethodRef(u1(10), class, nameAndType),
 					constantInterfaceMethodRef(u1(11), class, nameAndType),
 					constantMethodHandle(u1(15), u1(1), nameAndType), constantMethodType(u1(16), utf8),
-					constantInvoceDynamic(u1(18), u2(1), nameAndType)), u2(1), class, class, u2(0), interfaces(), u2(0),
-				fields(), u2(0), methods(), u2(0), attributes()))
+					constantInvoceDynamic(u1(18), u2(1), nameAndType), constantModule(u1(19), utf8),
+					constantPackage(u1(20), utf8)), u2(1), class, class, u2(0), interfaces(), u2(0), fields(), u2(0),
+				methods(), u2(0), attributes()))
 	}
 
-	@Test
-	def void classFileWithInterfaces() {
+	@Test def void classFileWithInterfaces() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0005 ConstantPool {
@@ -117,8 +117,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithFields() {
+	@Test def void classFileWithFields() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0006 ConstantPool {
@@ -144,8 +143,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithTwoMethods() {
+	@Test def void classFileWithTwoMethods() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0006 ConstantPool {
@@ -171,8 +169,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithUnknownAttributes() {
+	@Test def void classFileWithUnknownAttributes() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0003 ConstantPool {
@@ -193,8 +190,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithConstantValueAttribute() {
+	@Test def void classFileWithConstantValueAttribute() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0004 ConstantPool {
@@ -215,8 +211,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithCodeAttribute() {
+	@Test def void classFileWithCodeAttribute() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0003 ConstantPool {
@@ -241,8 +236,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithCodeAttributeAndExceptionTableEntries() {
+	@Test def void classFileWithCodeAttributeAndExceptionTableEntries() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0003 ConstantPool {
@@ -269,8 +263,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithCodeAttributeAndExceptionTableEntriesWithZeroReference() {
+	@Test def void classFileWithCodeAttributeAndExceptionTableEntriesWithZeroReference() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0003 ConstantPool {
@@ -297,8 +290,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithCodeAttributeAndAttribute() {
+	@Test def void classFileWithCodeAttributeAndAttribute() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0004 ConstantPool {
@@ -325,8 +317,7 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void classFileWithSourceFileAttribute() {
+	@Test def void classFileWithSourceFileAttribute() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0003 ConstantPool {
@@ -346,15 +337,65 @@ class JBCParsingTest {
 		''').assertNoErrors
 	}
 
-	@Test
-	def void codeGotoOntoItself() {
+	@Test def void classFileWithEnclosingMethodAttribute() {
+		parse('''
+			ClassFile {
+				CAFEBABE 0001 0002 0004 ConstantPool {
+					utf8 01 ""
+					class 07 0001
+					nameAndType 0C 0001 0001
+				}
+				0001 0002 0002 0000 Interfaces {
+				}
+				0000 Fields {
+				}
+				0000 Methods {
+				}
+				0001 Attributes {
+					enclosingMethod 0001 00000004 0002 0003
+				}
+			}
+		''').assertNoErrors
+	}
+
+	@Test def void classFileWithModuleAttribute() {
+		parse('''
+			ClassFile {
+				CAFEBABE 0001 0002 0004 ConstantPool {
+					utf8 01 "Module"
+					class 07 0001
+					module 13 0001
+				}
+				0001 0002 0002 0000 Interfaces {
+				}
+				0000 Fields {
+				}
+				0000 Methods {
+				}
+				0001 Attributes {
+					module 0001 00000008 0003 0000 0000
+					0000 Requires {
+					}
+					0000 Exports {
+					}
+					0000 Opens {
+					}
+					0000 Uses {
+					}
+					0000 Provides {
+					}
+				}
+			}
+		''').assertNoErrors
+	}
+
+	@Test def void codeGotoOntoItself() {
 		parse(standartClassFileWithCode('''
 			goto a7 0000
 		''')).assertNoErrors
 	}
 
-	@Test
-	def void codeGotoEndOfMethod() {
+	@Test def void codeGotoEndOfMethod() {
 		parse(standartClassFileWithCode('''
 			aload_0 2A
 			aload_1 2B
@@ -366,8 +407,7 @@ class JBCParsingTest {
 		''')).assertNoErrors
 	}
 
-	@Test
-	def void codeGotoStartOfMethod() {
+	@Test def void codeGotoStartOfMethod() {
 		parse(standartClassFileWithCode('''
 			aload_0 2A
 			aload_1 2B
@@ -379,8 +419,7 @@ class JBCParsingTest {
 		''')).assertNoErrors
 	}
 
-	@Test
-	def void codeGetFStatic() {
+	@Test def void codeGetFStatic() {
 		parse('''
 			ClassFile {
 				CAFEBABE 0001 0002 0008 ConstantPool {

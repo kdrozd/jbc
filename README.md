@@ -14,6 +14,10 @@ http://download.itemis.com/jbc/updates/
 
 You can do so by going through the main menu under "Help->Install New Software...", click an "Add..." and insert the URL in the dialog. You can then install the feature "JBC / JBC Feature".
 
+There is also an entry in the eclipse marketplace:
+
+http://marketplace.eclipse.org/content/jbc/
+
 ## Usage
 
 To support the developer the outline displays and interpretation of the byte code with resolved references.
@@ -31,5 +35,5 @@ It is also possible to open a .class file directly from the Project or Package E
 
 ## External Links
 
-- Introductional article: [4+1 = CAFEBABE: Java Bytecode in Eclipse](https://blogs.itemis.com/de/41-cafebabe-java-bytecode-in-eclipse) (german)
-- Some technical background: [Xtext-Editor für binäre Dateien](https://blogs.itemis.com/de/xtext-editor-fuer-binaere-dateien) (german)
+- Introductional article: 4+1 = CAFEBABE: Java Bytecode in Eclipse ([english](https://blogs.itemis.com/en/java-bytecode-in-eclipse) / [german](https://blogs.itemis.com/de/41-cafebabe-java-bytecode-in-eclipse))
+- Some technical background: Xtext-Editor für binäre Dateien ([german](https://blogs.itemis.com/de/xtext-editor-fuer-binaere-dateien))
